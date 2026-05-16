@@ -9,9 +9,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# =========================
-# STYLE CSS
-# =========================
 st.markdown("""
 <style>
     .stApp {
@@ -24,9 +21,8 @@ st.markdown("""
 
     .block-container {
         padding-top: 0rem;
-        padding-left: 1.4rem;
-        padding-right: 1.4rem;
-        padding-bottom: 1rem;
+        padding-left: 1.6rem;
+        padding-right: 1.6rem;
         max-width: 100%;
     }
 
@@ -39,8 +35,8 @@ st.markdown("""
         background-color: #06182d;
         color: white;
         padding: 26px 32px;
-        margin-left: -1.4rem;
-        margin-right: -1.4rem;
+        margin-left: -1.6rem;
+        margin-right: -1.6rem;
         margin-bottom: 22px;
         display: grid;
         grid-template-columns: 60px 1fr 60px;
@@ -63,14 +59,14 @@ st.markdown("""
         text-align: center;
     }
 
-    .control-bar {
+    .info-bar {
         background-color: #f8fafc;
         border: 1.5px solid #c8c8c8;
         border-radius: 8px;
         padding: 14px 18px;
         margin-bottom: 18px;
         color: #06182d;
-        font-size: 18px;
+        font-size: 17px;
         font-weight: 800;
     }
 
@@ -84,11 +80,10 @@ st.markdown("""
         justify-content: center;
         align-items: center;
         color: #06182d;
-        margin-bottom: 8px;
     }
 
     .card-title {
-        font-size: 26px;
+        font-size: 25px;
         font-weight: 900;
         margin-bottom: 22px;
         color: #06182d;
@@ -96,7 +91,7 @@ st.markdown("""
     }
 
     .card-value {
-        font-size: 64px;
+        font-size: 62px;
         font-weight: 900;
         line-height: 1;
         color: #06182d;
@@ -115,49 +110,13 @@ st.markdown("""
         font-size: 31px;
         font-weight: 900;
         color: #06182d;
-        margin-bottom: 18px;
-    }
-
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        border-color: #c8c8c8;
-        border-radius: 8px;
-        background-color: white;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        table-layout: fixed;
-        margin-top: 4px;
-    }
-
-    th {
-        background-color: #06182d;
-        color: white;
-        font-size: 22px;
-        font-weight: 900;
-        padding: 17px 8px;
-        border: 1px solid #c8c8c8;
-        text-align: center;
-    }
-
-    td {
-        color: #111827;
-        font-size: 24px;
-        font-weight: 800;
-        padding: 16px 8px;
-        border: 1px solid #c8c8c8;
-        text-align: center;
-    }
-
-    .footer-note {
         margin-top: 16px;
-        padding: 12px 14px;
-        background-color: #f8fafc;
-        border-left: 5px solid #06182d;
-        font-size: 16px;
-        font-weight: 700;
-        color: #06182d;
+        margin-bottom: 14px;
+    }
+
+    div[data-testid="stDataFrame"] {
+        border: 1px solid #c8c8c8;
+        border-radius: 8px;
     }
 
     div.stButton > button {
@@ -177,12 +136,17 @@ st.markdown("""
         border: none;
     }
 
-    @media screen and (max-width: 900px) {
-        .main-header {
-            grid-template-columns: 40px 1fr 40px;
-            padding: 20px 16px;
-        }
+    .footer-note {
+        margin-top: 18px;
+        padding: 12px 14px;
+        background-color: #f8fafc;
+        border-left: 5px solid #06182d;
+        font-size: 16px;
+        font-weight: 700;
+        color: #06182d;
+    }
 
+    @media screen and (max-width: 900px) {
         .main-header h1 {
             font-size: 22px;
         }
@@ -192,129 +156,170 @@ st.markdown("""
         }
 
         .card-title {
-            font-size: 19px;
+            font-size: 18px;
         }
 
         .card-value {
-            font-size: 44px;
+            font-size: 40px;
         }
 
         .section-title {
-            font-size: 24px;
-        }
-
-        th, td {
-            font-size: 14px;
-            padding: 10px 4px;
+            font-size: 23px;
         }
     }
 </style>
 """, unsafe_allow_html=True)
 
-# =========================
-# SESSION STATE
-# =========================
-if "mode_data" not in st.session_state:
-    st.session_state.mode_data = "Normal"
 
-if "status_koneksi" not in st.session_state:
-    st.session_state.status_koneksi = "Online"
+def clean_column_name(col):
+    return str(col).strip().lower().replace("_", " ").replace("-", " ")
 
-if "pompa_manual" not in st.session_state:
-    st.session_state.pompa_manual = False
+
+def find_column(df, keywords):
+    normalized = {col: clean_column_name(col) for col in df.columns}
+    for col, clean in normalized.items():
+        for key in keywords:
+            if key in clean:
+                return col
+    return None
+
+
+def load_default_data():
+    return pd.DataFrame({
+        "Waktu": ["08:00", "08:10", "08:20", "08:30", "08:40"],
+        "Kelembaban": [25, 32, 38, 42, 45]
+    })
+
+
+def prepare_dataset(raw_df):
+    df = raw_df.copy()
+
+    time_col = find_column(df, ["time", "waktu", "timestamp", "date"])
+    moisture_col = find_column(df, [
+        "soil moisture",
+        "soil_moisture",
+        "moisture",
+        "kelembaban",
+        "humidity soil",
+        "soil humidity"
+    ])
+
+    if moisture_col is None:
+        numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
+        if len(numeric_cols) > 0:
+            moisture_col = numeric_cols[0]
+        else:
+            return load_default_data(), "Kolom kelembaban tidak ditemukan. Dashboard memakai data contoh."
+
+    result = pd.DataFrame()
+    result["Kelembaban"] = pd.to_numeric(df[moisture_col], errors="coerce")
+    result = result.dropna(subset=["Kelembaban"])
+
+    if result.empty:
+        return load_default_data(), "Data kelembaban kosong atau tidak valid. Dashboard memakai data contoh."
+
+    if result["Kelembaban"].max() <= 1:
+        result["Kelembaban"] = result["Kelembaban"] * 100
+
+    result["Kelembaban"] = result["Kelembaban"].clip(lower=0, upper=100).round(0).astype(int)
+
+    if time_col is not None:
+        waktu = pd.to_datetime(df.loc[result.index, time_col], errors="coerce")
+        if waktu.notna().sum() > 0:
+            result["Waktu"] = waktu.dt.strftime("%H:%M")
+        else:
+            result["Waktu"] = [f"Data {i+1}" for i in range(len(result))]
+    else:
+        result["Waktu"] = [f"Data {i+1}" for i in range(len(result))]
+
+    result = result[["Waktu", "Kelembaban"]].tail(10).reset_index(drop=True)
+    return result, f"Dataset berhasil dibaca. Kolom kelembaban yang digunakan: {moisture_col}"
+
+
+if "threshold" not in st.session_state:
+    st.session_state.threshold = 30
 
 if "last_update" not in st.session_state:
     st.session_state.last_update = datetime.now().strftime("%H:%M:%S")
 
-# =========================
-# DATA SIMULASI
-# =========================
-data_normal = pd.DataFrame({
-    "Waktu": ["08:00", "08:10", "08:20", "08:30", "08:40"],
-    "Kelembaban": [25, 32, 38, 42, 45]
-})
 
-data_kering = pd.DataFrame({
-    "Waktu": ["08:00", "08:10", "08:20", "08:30", "08:40"],
-    "Kelembaban": [18, 21, 24, 25, 27]
-})
-
-data_lembab = pd.DataFrame({
-    "Waktu": ["08:00", "08:10", "08:20", "08:30", "08:40"],
-    "Kelembaban": [38, 41, 42, 45, 48]
-})
-
-# =========================
-# SIDEBAR INTERAKTIF
-# =========================
 with st.sidebar:
     st.markdown("## Pengaturan Dashboard")
 
-    mode = st.selectbox(
-        "Mode Data",
-        ["Normal", "Tanah Kering", "Tanah Lembab"],
-        index=["Normal", "Tanah Kering", "Tanah Lembab"].index(st.session_state.mode_data)
+    uploaded_file = st.file_uploader(
+        "Upload dataset Kaggle",
+        type=["csv", "xlsx"]
     )
 
     threshold = st.slider(
         "Batas Tanah Kering (%)",
         min_value=10,
-        max_value=60,
+        max_value=70,
         value=30,
         step=1
     )
 
-    koneksi = st.radio(
+    status_koneksi = st.radio(
         "Status Koneksi",
         ["Online", "Offline"],
-        index=0 if st.session_state.status_koneksi == "Online" else 1
+        index=0
     )
 
-    kontrol_pompa = st.toggle(
+    pompa_manual = st.toggle(
         "Paksa Pompa Aktif",
-        value=st.session_state.pompa_manual
+        value=False
+    )
+
+    jumlah_data = st.slider(
+        "Jumlah Data Grafik",
+        min_value=5,
+        max_value=20,
+        value=10,
+        step=1
     )
 
     if st.button("Perbarui Dashboard"):
-        st.session_state.mode_data = mode
-        st.session_state.status_koneksi = koneksi
-        st.session_state.pompa_manual = kontrol_pompa
+        st.session_state.threshold = threshold
         st.session_state.last_update = datetime.now().strftime("%H:%M:%S")
         st.rerun()
 
-    if st.button("Reset Data"):
-        st.session_state.mode_data = "Normal"
-        st.session_state.status_koneksi = "Online"
-        st.session_state.pompa_manual = False
+    if st.button("Reset Tampilan"):
+        st.session_state.threshold = 30
         st.session_state.last_update = datetime.now().strftime("%H:%M:%S")
         st.rerun()
 
-# =========================
-# PILIH DATA
-# =========================
-if st.session_state.mode_data == "Tanah Kering":
-    data = data_kering.copy()
-elif st.session_state.mode_data == "Tanah Lembab":
-    data = data_lembab.copy()
+
+if uploaded_file is not None:
+    try:
+        if uploaded_file.name.endswith(".csv"):
+            raw_data = pd.read_csv(uploaded_file)
+        else:
+            raw_data = pd.read_excel(uploaded_file)
+
+        data, dataset_note = prepare_dataset(raw_data)
+    except Exception as e:
+        data = load_default_data()
+        dataset_note = f"Dataset gagal dibaca. Dashboard memakai data contoh. Error: {e}"
 else:
-    data = data_normal.copy()
+    data = load_default_data()
+    dataset_note = "Belum ada dataset Kaggle yang di-upload. Dashboard memakai data contoh."
 
-kelembaban_akhir = int(data["Kelembaban"].iloc[-2]) if st.session_state.mode_data == "Normal" else int(data["Kelembaban"].iloc[-1])
+data = data.tail(jumlah_data).reset_index(drop=True)
 
+kelembaban_akhir = int(data["Kelembaban"].iloc[-1])
 status_tanah = "Kering" if kelembaban_akhir < threshold else "Lembab"
 
-if st.session_state.pompa_manual:
+if pompa_manual:
     status_pompa = "Aktif"
 else:
     status_pompa = "Aktif" if kelembaban_akhir < threshold else "Mati"
 
 data["Status Tanah"] = data["Kelembaban"].apply(lambda x: "Kering" if x < threshold else "Lembab")
 data["Status Pompa"] = data["Kelembaban"].apply(lambda x: "Aktif" if x < threshold else "Mati")
-data["Kelembaban Teks"] = data["Kelembaban"].astype(str) + "%"
+data["Kelembaban (%)"] = data["Kelembaban"].astype(str) + "%"
 
-# =========================
-# HEADER
-# =========================
+table_data = data[["Waktu", "Kelembaban (%)", "Status Tanah", "Status Pompa"]].copy()
+
 st.markdown("""
 <div class="main-header">
     <div class="header-icon">☰</div>
@@ -323,20 +328,14 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# =========================
-# CONTROL BAR
-# =========================
 st.markdown(f"""
-<div class="control-bar">
-    Mode Data: {st.session_state.mode_data} &nbsp;&nbsp; | &nbsp;&nbsp;
+<div class="info-bar">
+    Sumber Data: Dataset Kaggle / Data Simulasi &nbsp;&nbsp; | &nbsp;&nbsp;
     Batas Tanah Kering: {threshold}% &nbsp;&nbsp; | &nbsp;&nbsp;
     Update Terakhir: {st.session_state.last_update}
 </div>
 """, unsafe_allow_html=True)
 
-# =========================
-# CARD UTAMA
-# =========================
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
@@ -364,119 +363,82 @@ with col3:
     """, unsafe_allow_html=True)
 
 with col4:
-    koneksi_class = "online" if st.session_state.status_koneksi == "Online" else "offline"
+    koneksi_class = "online" if status_koneksi == "Online" else "offline"
     st.markdown(f"""
     <div class="card">
         <div class="card-title">Koneksi Sistem</div>
-        <div class="card-value {koneksi_class}">{st.session_state.status_koneksi}</div>
+        <div class="card-value {koneksi_class}">{status_koneksi}</div>
     </div>
     """, unsafe_allow_html=True)
 
-# =========================
-# GRAFIK DAN TABEL
-# =========================
 left, right = st.columns(2)
 
 with left:
-    with st.container(border=True):
-        st.markdown('<div class="section-title">Grafik Kelembaban Tanah</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Grafik Kelembaban Tanah</div>', unsafe_allow_html=True)
 
-        fig = go.Figure()
+    fig = go.Figure()
 
-        fig.add_trace(go.Scatter(
-            x=data["Waktu"],
-            y=data["Kelembaban"],
-            mode="lines+markers+text",
-            text=[f"{v}%" for v in data["Kelembaban"]],
-            textposition="top center",
-            line=dict(color="#0b4ea2", width=4),
-            marker=dict(size=12, color="#0b4ea2"),
-            textfont=dict(size=16, color="#111827", family="Arial Black")
-        ))
+    fig.add_trace(go.Scatter(
+        x=data["Waktu"],
+        y=data["Kelembaban"],
+        mode="lines+markers+text",
+        text=[f"{v}%" for v in data["Kelembaban"]],
+        textposition="top center",
+        line=dict(color="#0b4ea2", width=4),
+        marker=dict(size=12, color="#0b4ea2"),
+        textfont=dict(size=15, color="#111827", family="Arial Black")
+    ))
 
-        fig.add_hline(
-            y=threshold,
-            line_dash="dash",
-            line_color="#b91c1c",
-            annotation_text=f"Batas {threshold}%",
-            annotation_position="top left"
+    fig.add_hline(
+        y=threshold,
+        line_dash="dash",
+        line_color="#b91c1c",
+        annotation_text=f"Batas {threshold}%",
+        annotation_position="top left"
+    )
+
+    fig.update_layout(
+        height=430,
+        margin=dict(l=20, r=20, t=30, b=20),
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        showlegend=False,
+        xaxis=dict(
+            title=dict(text="Waktu", font=dict(size=20, color="#06182d", family="Arial Black")),
+            tickfont=dict(size=16, color="#111827", family="Arial Black"),
+            showgrid=False
+        ),
+        yaxis=dict(
+            title=dict(text="Kelembaban (%)", font=dict(size=20, color="#06182d", family="Arial Black")),
+            tickfont=dict(size=16, color="#111827", family="Arial Black"),
+            range=[0, 100],
+            dtick=10,
+            ticksuffix="%",
+            gridcolor="#d1d5db"
         )
+    )
 
-        fig.update_layout(
-            height=390,
-            margin=dict(l=20, r=20, t=10, b=20),
-            paper_bgcolor="white",
-            plot_bgcolor="white",
-            showlegend=False,
-            xaxis=dict(
-                title=dict(
-                    text="Waktu",
-                    font=dict(size=20, color="#06182d", family="Arial Black")
-                ),
-                tickfont=dict(size=16, color="#111827", family="Arial Black"),
-                showgrid=False
-            ),
-            yaxis=dict(
-                title=dict(
-                    text="Kelembaban (%)",
-                    font=dict(size=20, color="#06182d", family="Arial Black")
-                ),
-                tickfont=dict(size=16, color="#111827", family="Arial Black"),
-                range=[0, 60],
-                dtick=10,
-                ticksuffix="%",
-                gridcolor="#d1d5db"
-            )
-        )
-
-        st.plotly_chart(
-            fig,
-            use_container_width=True,
-            config={
-                "displayModeBar": False,
-                "responsive": True
-            }
-        )
+    st.plotly_chart(
+        fig,
+        use_container_width=True,
+        config={
+            "displayModeBar": False,
+            "responsive": True
+        }
+    )
 
 with right:
-    with st.container(border=True):
-        st.markdown('<div class="section-title">Riwayat Monitoring</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Riwayat Monitoring</div>', unsafe_allow_html=True)
 
-        table_html = """
-        <table>
-            <thead>
-                <tr>
-                    <th>Waktu</th>
-                    <th>Kelembaban</th>
-                    <th>Status Tanah</th>
-                    <th>Status Pompa</th>
-                </tr>
-            </thead>
-            <tbody>
-        """
+    st.dataframe(
+        table_data,
+        use_container_width=True,
+        hide_index=True,
+        height=430
+    )
 
-        for _, row in data.iterrows():
-            table_html += f"""
-                <tr>
-                    <td>{row["Waktu"]}</td>
-                    <td>{row["Kelembaban Teks"]}</td>
-                    <td>{row["Status Tanah"]}</td>
-                    <td>{row["Status Pompa"]}</td>
-                </tr>
-            """
-
-        table_html += """
-            </tbody>
-        </table>
-        """
-
-        st.markdown(table_html, unsafe_allow_html=True)
-
-# =========================
-# CATATAN BAWAH
-# =========================
-st.markdown("""
+st.markdown(f"""
 <div class="footer-note">
-    Dashboard ini menampilkan simulasi monitoring kelembaban tanah berbasis IoT, meliputi nilai kelembaban tanah, status tanah, status pompa, koneksi sistem, grafik, dan riwayat monitoring.
+    {dataset_note}
 </div>
 """, unsafe_allow_html=True)
